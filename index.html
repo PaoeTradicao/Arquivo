@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Arquivo de XML — Pão &amp; Tradição</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+:root{--azul:#13215E;--ouro:#EFAD4C;--creme:#F5F0DC;--linha:#E4E0D0;--cinza:#6b6b6b;--vermelho:#C0392B;--verde:#1e7e34}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#EEF0F4;color:#222;line-height:1.4}
+.app{display:flex;min-height:100vh}
+
+/* Sidebar */
+.side{width:236px;background:var(--azul);flex-shrink:0;display:flex;flex-direction:column;color:#fff}
+.side-top{padding:16px 16px 14px;border-bottom:1px solid rgba(255,255,255,.14);display:flex;align-items:center;gap:10px}
+.side-logo{width:34px;height:34px;border-radius:50%;background:var(--ouro);color:var(--azul);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;flex-shrink:0}
+.side-top h1{font-size:14px;font-weight:700;line-height:1.15}
+.side-top .sub{font-size:10.5px;color:#B9C0DD;font-weight:400}
+.side-body{flex:1;overflow-y:auto;padding:8px 0}
+.side-foot{padding:12px 16px;font-size:11px;color:#8A93BF;border-top:1px solid rgba(255,255,255,.12)}
+
+/* Árvore */
+.tree-empty{padding:20px 16px;color:#AEB5D6;font-size:13px}
+.tnode{user-select:none}
+.tano>.trow{font-weight:700;font-size:13px}
+.trow{display:flex;align-items:center;gap:7px;padding:7px 14px;cursor:pointer;font-size:13px;color:#DDE1F0}
+.trow:hover{background:rgba(255,255,255,.07)}
+.trow.sel{background:var(--ouro);color:var(--azul);font-weight:700}
+.trow .cnt{margin-left:auto;font-size:11px;opacity:.8;font-weight:400}
+.trow.sel .cnt{opacity:.85}
+.tmes>.trow{padding-left:28px;font-size:12.5px}
+.tforn>.trow{padding-left:44px;font-size:12.5px;color:#C7CDE8}
+.caret{width:12px;display:inline-block;transition:transform .15s;font-size:10px;flex-shrink:0}
+.caret.open{transform:rotate(90deg)}
+.tchildren{overflow:hidden}
+.tchildren.collapsed{display:none}
+
+/* Main */
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.topbar{background:#fff;border-bottom:1px solid var(--linha);padding:14px 22px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.topbar h2{color:var(--azul);font-size:18px;font-weight:700}
+.topbar .path{color:var(--cinza);font-size:13px}
+.spacer{flex:1}
+.content{flex:1;padding:20px 22px;overflow-y:auto}
+
+/* Botões */
+.btn{border:none;border-radius:7px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap}
+.btn-p{background:var(--azul);color:#fff}
+.btn-p:hover{background:#1c2f7e}
+.btn-o{background:var(--ouro);color:var(--azul)}
+.btn-o:hover{filter:brightness(1.04)}
+.btn-g{background:#fff;color:var(--azul);border:1px solid var(--azul)}
+.btn-g:hover{background:#f3f5ff}
+.btn-sm{padding:5px 10px;font-size:12px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+
+/* Dropzone */
+.drop{background:#fff;border:2px dashed var(--ouro);border-radius:12px;padding:26px;text-align:center;margin-bottom:18px;transition:background .15s}
+.drop.over{background:#FCF6E8}
+.drop h3{color:var(--azul);font-size:15px;margin-bottom:5px}
+.drop p{color:var(--cinza);font-size:12.5px}
+.drop .btn{margin-top:12px}
+
+/* Tabela de notas */
+.card{background:#fff;border:1px solid var(--linha);border-radius:10px;overflow:hidden}
+.card-head{padding:12px 16px;border-bottom:1px solid var(--linha);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.card-head strong{color:var(--azul);font-size:14px}
+.card-head .actions{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:9px 14px;border-bottom:1px solid #f0eee4}
+th{background:#FAF8F0;color:var(--azul);font-weight:700;font-size:12px;position:sticky;top:0}
+tr:hover td{background:#FCFBF6}
+td.r,th.r{text-align:right}
+td.c,th.c{text-align:center}
+.chk{width:16px;height:16px;cursor:pointer}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:var(--cinza)}
+.empty{padding:40px 20px;text-align:center;color:var(--cinza);font-size:14px}
+
+/* Busca */
+.search{position:relative;flex:1;max-width:420px;min-width:200px}
+.search input{width:100%;padding:8px 12px;border:1px solid var(--linha);border-radius:7px;font-size:13px;font-family:inherit}
+.search input:focus{outline:none;border-color:var(--ouro)}
+
+/* Toast */
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--azul);color:#fff;padding:11px 20px;border-radius:8px;font-size:13px;box-shadow:0 4px 14px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .2s;z-index:100;max-width:90vw;text-align:center}
+.toast.show{opacity:1}
+.toast.err{background:var(--vermelho)}
+.toast.ok{background:var(--verde)}
+
+/* Modal */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:90;padding:16px}
+.overlay.show{display:flex}
+.modal{background:#fff;border-radius:12px;padding:22px;max-width:420px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,.3)}
+.modal h3{color:var(--azul);font-size:16px;margin-bottom:6px}
+.modal p{color:var(--cinza);font-size:13px;margin-bottom:14px}
+.modal input{width:100%;padding:9px 12px;border:1px solid var(--linha);border-radius:7px;font-size:14px;font-family:inherit;margin-bottom:14px}
+.modal input:focus{outline:none;border-color:var(--ouro)}
+.modal .row{display:flex;gap:10px;justify-content:flex-end}
+
+/* Mobile */
+.menu-btn{display:none;width:42px;height:42px;align-items:center;justify-content:center;background:#fff;border:1px solid var(--linha);border-radius:9px;color:var(--azul);flex-shrink:0}
+.menu-btn svg{width:22px;height:22px}
+.side-close{display:none;margin-left:auto;background:transparent;border:none;color:#C9CEE8;font-size:22px;cursor:pointer}
+.backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:80}
+.backdrop.show{display:block}
+@media(max-width:760px){
+  .side{position:fixed;top:0;left:-260px;height:100vh;z-index:85;transition:left .2s}
+  .side.open{left:0;box-shadow:2px 0 20px rgba(0,0,0,.3)}
+  .side-close{display:block}
+  .menu-btn{display:flex}
+  .topbar{padding:12px 14px}
+  .content{padding:14px}
+  th.hide-m,td.hide-m{display:none}
+}
+</style>
+</head>
+<body>
+<div class="backdrop" id="backdrop"></div>
+<div class="app">
+  <nav class="side" id="side">
+    <div class="side-top">
+      <div class="side-logo">P&amp;T</div>
+      <div>
+        <h1>Arquivo de XML</h1>
+        <div class="sub">Pão &amp; Tradição</div>
+      </div>
+      <button class="side-close" id="sideClose">&times;</button>
+    </div>
+    <div class="side-body" id="tree">
+      <div class="tree-empty">Nenhuma nota ainda. Faça o upload de arquivos XML para começar.</div>
+    </div>
+    <div class="side-foot" id="sideFoot">0 notas guardadas</div>
+  </nav>
+
+  <div class="main">
+    <div class="topbar">
+      <button class="menu-btn" id="menuBtn" aria-label="Menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+      <div>
+        <h2 id="viewTitle">Todas as notas</h2>
+        <div class="path" id="viewPath">Arraste arquivos XML ou use o botão para importar</div>
+      </div>
+      <div class="spacer"></div>
+      <button class="btn btn-g btn-sm" id="btnBackup">Exportar backup</button>
+      <label class="btn btn-g btn-sm" style="cursor:pointer">Importar backup<input type="file" id="inpBackup" accept=".json" hidden></label>
+    </div>
+
+    <div class="content">
+      <div class="drop" id="drop">
+        <h3>Solte os arquivos XML aqui</h3>
+        <p>Pode soltar vários de uma vez. O sistema lê a data e o fornecedor de dentro de cada nota e organiza sozinho.</p>
+        <label class="btn btn-o" style="cursor:pointer">Escolher arquivos XML<input type="file" id="inpXml" accept=".xml" multiple hidden></label>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <strong id="listCount">0 notas</strong>
+          <div class="search">
+            <input type="text" id="busca" placeholder="Buscar por fornecedor, apelido, número ou chave...">
+          </div>
+          <div class="actions">
+            <button class="btn btn-g btn-sm" id="btnSelAll">Selecionar todas</button>
+            <button class="btn btn-p btn-sm" id="btnDlSel" disabled>Baixar selecionadas</button>
+            <button class="btn btn-o btn-sm" id="btnDlView">Baixar esta pasta</button>
+          </div>
+        </div>
+        <div style="max-height:calc(100vh - 320px);overflow:auto">
+          <table>
+            <thead>
+              <tr>
+                <th class="c" style="width:36px"><input type="checkbox" class="chk" id="chkAll"></th>
+                <th>Fornecedor</th>
+                <th class="hide-m">Nº nota</th>
+                <th class="r hide-m">Valor</th>
+                <th class="hide-m">Emissão</th>
+                <th class="c" style="width:150px">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="rows">
+              <tr><td colspan="6" class="empty">Nenhuma nota para mostrar.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="renameOverlay">
+  <div class="modal">
+    <h3>Renomear fornecedor</h3>
+    <p id="renameSub">Este apelido vale para todas as notas deste CNPJ, inclusive futuras.</p>
+    <input type="text" id="renameInput" placeholder="Nome que você usa no dia a dia">
+    <div class="row">
+      <button class="btn btn-g" id="renameCancel">Cancelar</button>
+      <button class="btn btn-p" id="renameSave">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const MESES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+let DB=null, NOTAS=[], APELIDOS={}, VIEW={tipo:'todas'}, SELECT=new Set(), COLAPSO={};
+
+// ---------- IndexedDB ----------
+function abrirDB(){
+  return new Promise((res,rej)=>{
+    const r=indexedDB.open('arquivoXML',1);
+    r.onupgradeneeded=e=>{
+      const db=e.target.result;
+      if(!db.objectStoreNames.contains('notas')) db.createObjectStore('notas',{keyPath:'chave'});
+      if(!db.objectStoreNames.contains('apelidos')) db.createObjectStore('apelidos',{keyPath:'cnpj'});
+    };
+    r.onsuccess=e=>res(e.target.result);
+    r.onerror=e=>rej(e.target.error);
+  });
+}
+function tx(store,modo){ return DB.transaction(store,modo).objectStore(store); }
+function putNota(n){ return new Promise((res,rej)=>{ const r=tx('notas','readwrite').put(n); r.onsuccess=res; r.onerror=()=>rej(r.error); }); }
+function delNota(chave){ return new Promise((res,rej)=>{ const r=tx('notas','readwrite').delete(chave); r.onsuccess=res; r.onerror=()=>rej(r.error); }); }
+function getNotas(){ return new Promise((res,rej)=>{ const r=tx('notas','readonly').getAll(); r.onsuccess=()=>res(r.result||[]); r.onerror=()=>rej(r.error); }); }
+function putApelido(cnpj,apelido){ return new Promise((res,rej)=>{ const r=tx('apelidos','readwrite').put({cnpj,apelido}); r.onsuccess=res; r.onerror=()=>rej(r.error); }); }
+function getApelidos(){ return new Promise((res,rej)=>{ const r=tx('apelidos','readonly').getAll(); r.onsuccess=()=>res(r.result||[]); r.onerror=()=>rej(r.error); }); }
+
+// ---------- Parse XML ----------
+function texto(node,tag){ const el=node.getElementsByTagName(tag)[0]; return el?el.textContent.trim():''; }
+function parseXML(xmlText){
+  const doc=new DOMParser().parseFromString(xmlText,'application/xml');
+  if(doc.getElementsByTagName('parsererror').length) return null;
+  const inf=doc.getElementsByTagName('infNFe')[0];
+  let chave='';
+  if(inf && inf.getAttribute('Id')) chave=inf.getAttribute('Id').replace(/[^0-9]/g,'');
+  if(!chave){ chave=texto(doc,'chNFe'); }
+  const emit=doc.getElementsByTagName('emit')[0];
+  if(!emit) return null;
+  const cnpj=(texto(emit,'CNPJ')||texto(emit,'CPF')||'').replace(/[^0-9]/g,'');
+  const emitente=texto(emit,'xNome');
+  const fantasia=texto(emit,'xFant');
+  const ide=doc.getElementsByTagName('ide')[0];
+  let dt=ide?(texto(ide,'dhEmi')||texto(ide,'dEmi')):'';
+  const numero=ide?texto(ide,'nNF'):'';
+  let valor=0;
+  const icmsTot=doc.getElementsByTagName('ICMSTot')[0];
+  if(icmsTot) valor=parseFloat(texto(icmsTot,'vNF')||'0')||0;
+  // data
+  let ano='????', mes=0, dataEmissao='';
+  if(dt){
+    const d=dt.slice(0,10); // YYYY-MM-DD
+    if(/^\d{4}-\d{2}-\d{2}/.test(d)){ ano=d.slice(0,4); mes=parseInt(d.slice(5,7),10); dataEmissao=d; }
+  }
+  if(!chave) chave='SEMCHAVE-'+(numero||Math.random().toString(36).slice(2))+'-'+cnpj;
+  return {chave, xmlText, ano, mes, cnpj, emitente, fantasia, numero, valor, dataEmissao, importadoEm:new Date().toISOString()};
+}
+
+// ---------- Nome de exibição do fornecedor ----------
+function nomeForn(n){
+  if(APELIDOS[n.cnpj]) return APELIDOS[n.cnpj];
+  return n.fantasia || n.emitente || ('CNPJ '+n.cnpj);
+}
+
+// ---------- Import ----------
+async function importarArquivos(files){
+  let ok=0, dup=0, erro=0;
+  for(const f of files){
+    if(!/\.xml$/i.test(f.name)){ continue; }
+    try{
+      const txt=await f.text();
+      const n=parseXML(txt);
+      if(!n){ erro++; continue; }
+      const jaExiste=NOTAS.some(x=>x.chave===n.chave);
+      await putNota(n);
+      if(jaExiste) dup++; else ok++;
+    }catch(e){ erro++; }
+  }
+  await recarregar();
+  let msg=ok+' nota(s) importada(s)';
+  if(dup) msg+=', '+dup+' atualizada(s)';
+  if(erro) msg+=', '+erro+' com erro';
+  toast(msg, erro?'err':'ok');
+}
+
+async function recarregar(){
+  NOTAS=await getNotas();
+  const aps=await getApelidos();
+  APELIDOS={}; aps.forEach(a=>APELIDOS[a.cnpj]=a.apelido);
+  renderArvore();
+  renderLista();
+  document.getElementById('sideFoot').textContent=NOTAS.length+' nota(s) guardada(s)';
+}
+
+// ---------- Árvore Ano > Mês > Fornecedor ----------
+function agrupar(){
+  const arv={};
+  NOTAS.forEach(n=>{
+    if(!arv[n.ano]) arv[n.ano]={_c:0,meses:{}};
+    arv[n.ano]._c++;
+    if(!arv[n.ano].meses[n.mes]) arv[n.ano].meses[n.mes]={_c:0,forn:{}};
+    arv[n.ano].meses[n.mes]._c++;
+    if(!arv[n.ano].meses[n.mes].forn[n.cnpj]) arv[n.ano].meses[n.mes].forn[n.cnpj]={_c:0,nome:nomeForn(n)};
+    arv[n.ano].meses[n.mes].forn[n.cnpj]._c++;
+    arv[n.ano].meses[n.mes].forn[n.cnpj].nome=nomeForn(n);
+  });
+  return arv;
+}
+function key(o){ return JSON.stringify(o); }
+function renderArvore(){
+  const cont=document.getElementById('tree');
+  if(NOTAS.length===0){ cont.innerHTML='<div class="tree-empty">Nenhuma nota ainda. Faça o upload de arquivos XML para começar.</div>'; return; }
+  const arv=agrupar();
+  let html='';
+  const selAll = VIEW.tipo==='todas'?' sel':'';
+  html+=`<div class="tnode"><div class="trow${selAll}" data-view='${key({tipo:"todas"})}'><span class="caret"></span>Todas as notas<span class="cnt">${NOTAS.length}</span></div></div>`;
+  Object.keys(arv).sort((a,b)=>b.localeCompare(a)).forEach(ano=>{
+    const ak='ano-'+ano; const aberto=COLAPSO[ak]!==false;
+    const anoSel=(VIEW.tipo==='ano'&&VIEW.ano===ano)?' sel':'';
+    html+=`<div class="tnode tano">
+      <div class="trow${anoSel}" data-view='${key({tipo:"ano",ano})}' data-toggle="${ak}"><span class="caret ${aberto?'open':''}">&#9656;</span>${ano}<span class="cnt">${arv[ano]._c}</span></div>
+      <div class="tchildren ${aberto?'':'collapsed'}" data-ch="${ak}">`;
+    Object.keys(arv[ano].meses).map(Number).sort((a,b)=>b-a).forEach(mes=>{
+      const mk='mes-'+ano+'-'+mes; const mAberto=COLAPSO[mk]===true;
+      const mesSel=(VIEW.tipo==='mes'&&VIEW.ano===ano&&VIEW.mes===mes)?' sel':'';
+      html+=`<div class="tnode tmes">
+        <div class="trow${mesSel}" data-view='${key({tipo:"mes",ano,mes})}' data-toggle="${mk}"><span class="caret ${mAberto?'open':''}">&#9656;</span>${MESES[mes-1]||'??'}<span class="cnt">${arv[ano].meses[mes]._c}</span></div>
+        <div class="tchildren ${mAberto?'':'collapsed'}" data-ch="${mk}">`;
+      const forns=arv[ano].meses[mes].forn;
+      Object.keys(forns).sort((a,b)=>forns[a].nome.localeCompare(forns[b].nome)).forEach(cnpj=>{
+        const fSel=(VIEW.tipo==='forn'&&VIEW.ano===ano&&VIEW.mes===mes&&VIEW.cnpj===cnpj)?' sel':'';
+        html+=`<div class="tnode tforn"><div class="trow${fSel}" data-view='${key({tipo:"forn",ano,mes,cnpj})}' title="${forns[cnpj].nome}"><span class="caret"></span>${forns[cnpj].nome}<span class="cnt">${forns[cnpj]._c}</span></div></div>`;
+      });
+      html+=`</div></div>`;
+    });
+    html+=`</div></div>`;
+  });
+  cont.innerHTML=html;
+}
+
+// ---------- Filtro pela view + busca ----------
+function notasDaView(){
+  let arr=NOTAS.slice();
+  if(VIEW.tipo==='ano') arr=arr.filter(n=>n.ano===VIEW.ano);
+  else if(VIEW.tipo==='mes') arr=arr.filter(n=>n.ano===VIEW.ano&&n.mes===VIEW.mes);
+  else if(VIEW.tipo==='forn') arr=arr.filter(n=>n.ano===VIEW.ano&&n.mes===VIEW.mes&&n.cnpj===VIEW.cnpj);
+  const q=(document.getElementById('busca').value||'').toLowerCase().trim();
+  if(q){
+    arr=arr.filter(n=>{
+      return nomeForn(n).toLowerCase().includes(q)
+        || (n.emitente||'').toLowerCase().includes(q)
+        || (n.fantasia||'').toLowerCase().includes(q)
+        || (n.numero||'').includes(q)
+        || (n.chave||'').includes(q)
+        || (n.cnpj||'').includes(q);
+    });
+  }
+  arr.sort((a,b)=>(b.dataEmissao||'').localeCompare(a.dataEmissao||'')|| (a.numero||'').localeCompare(b.numero||''));
+  return arr;
+}
+function tituloView(){
+  if(VIEW.tipo==='todas') return {t:'Todas as notas', p:'Tudo que está guardado'};
+  if(VIEW.tipo==='ano') return {t:VIEW.ano, p:'Ano inteiro'};
+  if(VIEW.tipo==='mes') return {t:(MESES[VIEW.mes-1]||'')+' de '+VIEW.ano, p:'Mês inteiro'};
+  if(VIEW.tipo==='forn'){ const n=NOTAS.find(x=>x.cnpj===VIEW.cnpj); return {t:n?nomeForn(n):'Fornecedor', p:(MESES[VIEW.mes-1]||'')+' de '+VIEW.ano+' · CNPJ '+fmtCnpj(VIEW.cnpj)}; }
+  return {t:'Notas', p:''};
+}
+function fmtCnpj(c){ if(!c) return ''; if(c.length===14) return c.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,'$1.$2.$3/$4-$5'); return c; }
+function fmtBRL(v){ return 'R$ '+(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtData(d){ if(!d) return '—'; const p=d.split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
+
+function renderLista(){
+  const arr=notasDaView();
+  const tit=tituloView();
+  document.getElementById('viewTitle').textContent=tit.t;
+  document.getElementById('viewPath').textContent=tit.p;
+  const total=arr.reduce((s,n)=>s+(n.valor||0),0);
+  document.getElementById('listCount').textContent=arr.length+' nota(s) · '+fmtBRL(total);
+  const tb=document.getElementById('rows');
+  if(arr.length===0){ tb.innerHTML='<tr><td colspan="6" class="empty">Nenhuma nota para mostrar.</td></tr>'; atualizaBotoes(); return; }
+  tb.innerHTML=arr.map(n=>{
+    const checked=SELECT.has(n.chave)?'checked':'';
+    return `<tr>
+      <td class="c"><input type="checkbox" class="chk rowchk" data-chave="${n.chave}" ${checked}></td>
+      <td><div style="font-weight:600;color:var(--azul)">${nomeForn(n)}</div><div class="mono">${n.chave}</div></td>
+      <td class="hide-m">${n.numero||'—'}</td>
+      <td class="r hide-m">${fmtBRL(n.valor)}</td>
+      <td class="hide-m">${fmtData(n.dataEmissao)}</td>
+      <td class="c">
+        <button class="btn btn-o btn-sm" data-dl="${n.chave}">Baixar</button>
+        <button class="btn btn-g btn-sm" data-rename="${n.cnpj}">Renomear</button>
+        <button class="btn btn-g btn-sm" data-del="${n.chave}" title="Excluir">Excluir</button>
+      </td>
+    </tr>`;
+  }).join('');
+  atualizaBotoes();
+}
+function atualizaBotoes(){
+  document.getElementById('btnDlSel').disabled=SELECT.size===0;
+  document.getElementById('btnDlSel').textContent='Baixar selecionadas'+(SELECT.size?' ('+SELECT.size+')':'');
+}
+
+// ---------- Downloads ----------
+function baixarUm(chave){
+  const n=NOTAS.find(x=>x.chave===chave); if(!n) return;
+  const blob=new Blob([n.xmlText],{type:'application/xml'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=nomeArquivo(n); a.click();
+}
+function nomeArquivo(n){ return (n.chave.replace(/[^0-9A-Za-z]/g,'')||'nota')+'.xml'; }
+function caminhoZip(n){
+  const forn=(nomeForn(n)||'SEM_FORNECEDOR').replace(/[\/\\:*?"<>|]/g,'-').slice(0,60);
+  return `${n.ano}/${String(n.mes).padStart(2,'0')} - ${MESES[n.mes-1]||'??'}/${forn}/${nomeArquivo(n)}`;
+}
+async function baixarZip(lista, nomeZip){
+  if(!lista.length){ toast('Nada para baixar','err'); return; }
+  if(lista.length===1){ baixarUm(lista[0].chave); return; }
+  toast('Preparando '+lista.length+' arquivos...');
+  const zip=new JSZip();
+  lista.forEach(n=>zip.file(caminhoZip(n), n.xmlText));
+  const blob=await zip.generateAsync({type:'blob'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=nomeZip; a.click();
+  toast(lista.length+' arquivos baixados','ok');
+}
+
+// ---------- Backup ----------
+async function exportarBackup(){
+  const dump={versao:1, exportadoEm:new Date().toISOString(), notas:NOTAS, apelidos:APELIDOS};
+  const blob=new Blob([JSON.stringify(dump)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='backup-xml-'+new Date().toISOString().slice(0,10)+'.json'; a.click();
+  toast('Backup exportado','ok');
+}
+async function importarBackup(file){
+  try{
+    const d=JSON.parse(await file.text());
+    if(!d.notas){ toast('Arquivo de backup inválido','err'); return; }
+    for(const n of d.notas) await putNota(n);
+    if(d.apelidos) for(const cnpj in d.apelidos) await putApelido(cnpj,d.apelidos[cnpj]);
+    await recarregar();
+    toast(d.notas.length+' nota(s) restaurada(s)','ok');
+  }catch(e){ toast('Falha ao ler o backup','err'); }
+}
+
+// ---------- Eventos ----------
+document.getElementById('tree').addEventListener('click',e=>{
+  const row=e.target.closest('.trow'); if(!row) return;
+  const tog=e.target.closest('.caret');
+  if(tog && row.dataset.toggle){
+    const k=row.dataset.toggle;
+    const ch=document.querySelector(`[data-ch="${k}"]`);
+    if(ch){ ch.classList.toggle('collapsed'); tog.classList.toggle('open'); COLAPSO[k]=!ch.classList.contains('collapsed'); }
+    e.stopPropagation(); return;
+  }
+  if(row.dataset.view){
+    VIEW=JSON.parse(row.dataset.view);
+    SELECT.clear();
+    document.getElementById('chkAll').checked=false;
+    renderArvore(); renderLista();
+    if(window.innerWidth<=760) fecharSide();
+  }
+});
+document.getElementById('rows').addEventListener('click',e=>{
+  const dl=e.target.closest('[data-dl]'); if(dl){ baixarUm(dl.dataset.dl); return; }
+  const rn=e.target.closest('[data-rename]'); if(rn){ abrirRename(rn.dataset.rename); return; }
+  const del=e.target.closest('[data-del]'); if(del){
+    if(confirm('Excluir esta nota do arquivo? O XML será removido deste navegador.')){
+      delNota(del.dataset.del).then(()=>{ SELECT.delete(del.dataset.del); recarregar(); toast('Nota excluída'); });
+    }
+    return;
+  }
+});
+document.getElementById('rows').addEventListener('change',e=>{
+  const c=e.target.closest('.rowchk'); if(!c) return;
+  if(c.checked) SELECT.add(c.dataset.chave); else SELECT.delete(c.dataset.chave);
+  atualizaBotoes();
+});
+document.getElementById('chkAll').addEventListener('change',e=>{
+  const arr=notasDaView();
+  if(e.target.checked) arr.forEach(n=>SELECT.add(n.chave)); else arr.forEach(n=>SELECT.delete(n.chave));
+  renderLista();
+});
+document.getElementById('btnSelAll').addEventListener('click',()=>{
+  const arr=notasDaView(); arr.forEach(n=>SELECT.add(n.chave)); document.getElementById('chkAll').checked=true; renderLista();
+});
+document.getElementById('btnDlSel').addEventListener('click',()=>{
+  const lista=NOTAS.filter(n=>SELECT.has(n.chave));
+  baixarZip(lista,'xml-selecionadas.zip');
+});
+document.getElementById('btnDlView').addEventListener('click',()=>{
+  const arr=notasDaView(); const tit=tituloView();
+  baixarZip(arr,'xml-'+(tit.t||'pasta').replace(/[^0-9A-Za-z]/g,'-').toLowerCase()+'.zip');
+});
+document.getElementById('busca').addEventListener('input',renderLista);
+document.getElementById('btnBackup').addEventListener('click',exportarBackup);
+document.getElementById('inpBackup').addEventListener('change',e=>{ if(e.target.files[0]) importarBackup(e.target.files[0]); e.target.value=''; });
+document.getElementById('inpXml').addEventListener('change',e=>{ importarArquivos([...e.target.files]); e.target.value=''; });
+
+// Dropzone
+const drop=document.getElementById('drop');
+['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over');}));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over');}));
+drop.addEventListener('drop',e=>{ importarArquivos([...e.dataTransfer.files]); });
+// permitir soltar em qualquer lugar
+document.addEventListener('dragover',e=>e.preventDefault());
+document.addEventListener('drop',e=>{ if(e.target.closest('#drop')) return; e.preventDefault(); if(e.dataTransfer.files.length) importarArquivos([...e.dataTransfer.files]); });
+
+// Rename modal
+let renameCnpj=null;
+function abrirRename(cnpj){
+  renameCnpj=cnpj;
+  const n=NOTAS.find(x=>x.cnpj===cnpj);
+  document.getElementById('renameSub').textContent='Razão social: '+((n&&n.emitente)||'—')+'. O apelido vale para todas as notas deste CNPJ.';
+  document.getElementById('renameInput').value=APELIDOS[cnpj]||(n&&(n.fantasia||n.emitente))||'';
+  document.getElementById('renameOverlay').classList.add('show');
+  document.getElementById('renameInput').focus();
+}
+function fecharRename(){ document.getElementById('renameOverlay').classList.remove('show'); renameCnpj=null; }
+document.getElementById('renameCancel').addEventListener('click',fecharRename);
+document.getElementById('renameSave').addEventListener('click',async()=>{
+  const v=document.getElementById('renameInput').value.trim();
+  if(renameCnpj){ if(v) await putApelido(renameCnpj,v); await recarregar(); toast('Fornecedor renomeado','ok'); }
+  fecharRename();
+});
+document.getElementById('renameOverlay').addEventListener('click',e=>{ if(e.target.id==='renameOverlay') fecharRename(); });
+document.getElementById('renameInput').addEventListener('keydown',e=>{ if(e.key==='Enter') document.getElementById('renameSave').click(); });
+
+// Mobile menu
+function abrirSide(){ document.getElementById('side').classList.add('open'); document.getElementById('backdrop').classList.add('show'); }
+function fecharSide(){ document.getElementById('side').classList.remove('open'); document.getElementById('backdrop').classList.remove('show'); }
+document.getElementById('menuBtn').addEventListener('click',abrirSide);
+document.getElementById('sideClose').addEventListener('click',fecharSide);
+document.getElementById('backdrop').addEventListener('click',fecharSide);
+
+// Init
+abrirDB().then(db=>{ DB=db; recarregar(); }).catch(e=>toast('Erro ao abrir o banco local: '+e.message,'err'));
+
+let toastT;
+function toast(msg,tipo){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className='toast show'+(tipo?' '+tipo:'');
+  clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2600);
+}
+</script>
+</body>
+</html>
